@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Microsoft.WindowsAzure.Storage.Table;
+using System.Collections.Generic;
+using System.Linq;
+using System.Globalization;
 
 namespace Paperback.Cache
 {
@@ -20,10 +23,16 @@ namespace Paperback.Cache
         {
 
             string title = req.Query["manga_title"];
+            string fromDate = req.Query["from_date"];
 
             // Verify that the request was formed properly
-            if(title == null || title == "") {
-                return new BadRequestObjectResult("Bad request");
+            if(title == null || title == "" || fromDate == null || fromDate == "") {
+                return new BadRequestObjectResult("Missing request parameters");
+            }
+
+            DateTime date;
+            if(!DateTime.TryParse(fromDate, out date)) {
+                return new BadRequestObjectResult("Date format error");
             }
 
             // There is a correct manga title, attempt to retrieve this title from the cache server
@@ -39,7 +48,33 @@ namespace Paperback.Cache
                 return new BadRequestObjectResult("not in database");
             }
 
-            return new OkObjectResult(selectElement.json);
+            List<ChapterDetails> details = new List<ChapterDetails>(JsonConvert.DeserializeObject<ChapterDetails[]>(selectElement.json));
+            
+            // If the list is empty, throw an error, this should not be the case if it was stored in the DB
+            if(!details.Any()) {
+                return new BadRequestObjectResult("Error parsing database response field");
+            }
+
+            DateTime chapterDate;
+            List<String> chapterAlertList = new List<String>();
+            foreach(ChapterDetails chapter in details) {
+                // Parse the chapter date into it's object representation for comparison - Yes, you have to do some sketchy replacements. 
+                // MangaRock RSS doesn't return proper formatted values. This is guarinteed to work every time, despite the magic numbers.
+                chapter.timestamp = chapter.timestamp.Substring(0, chapter.timestamp.Length - 5) + "GMT";
+                if(!DateTime.TryParse(chapter.timestamp, out chapterDate)) {
+                    return new BadRequestObjectResult("Timestamp parse from database failed");
+                };
+
+                //Check to see whether or not the chapter is newer than our incoming date
+                if(chapterDate.CompareTo(date) < 0) {
+                    // It is! Add the chapter title to our alert list. Format the response to match what the normal source would return.
+                    // Example: One Piece is called one-piece by MangaRock's primary source, for some reason. ToLower, replace spaces with dashes
+                    title = title.ToLower().Replace(" ", "-");
+                    chapterAlertList.Add(title);
+                }
+            }
+
+            return new OkObjectResult(chapterAlertList.ToArray());
         }
     }
 }

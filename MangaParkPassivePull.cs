@@ -5,6 +5,7 @@ using Microsoft.WindowsAzure.Storage.Table;
 using System;
 using Microsoft.WindowsAzure.Storage;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace Paperback.Cache
 {
@@ -32,10 +33,22 @@ namespace Paperback.Cache
             XmlNodeList nodes = doc.GetElementsByTagName("item");
             for(int i = 0; i <= nodes.Count - 1; i++) {
                 // Spawn a MangaPark element off of the extracted data
-                MangaParkTransitionElement element = new MangaParkTransitionElement(nodes[i].ChildNodes.Item(0).InnerText, nodes[i].ChildNodes.Item(3).InnerText);
+                // We collect titles from the URL, not the title itself. Process that here.
+                string url = nodes[i].ChildNodes.Item(1).InnerText;
+                Regex rx = new Regex("/manga/([\\w*|-]*)/");
+                Match match = rx.Match(url);
+                if(match.Success) {
+                    url = match.Groups[1].Value;
+                }
+                else {
+                    // This is a bad parse, we cannot use this
+                    log.LogWarning("Manga: " + nodes[i].ChildNodes.Item(0).InnerText + " cannot be parsed for it's URL properly");
+                    continue;
+                }
+                MangaParkTransitionElement element = new MangaParkTransitionElement(url, nodes[i].ChildNodes.Item(3).InnerText, nodes[i].ChildNodes.Item(0).InnerText);
 
                 // Is this a valid XML entry? If so, process it to the TableStorage
-                if(element.isValid) {
+                if(element.isValid) {                    
                     // Check to see if this element already exists in the server
                     try {                       
                         TableOperation retrieveOperation = TableOperation.Retrieve<MangaParkElement>(element.title, "*");

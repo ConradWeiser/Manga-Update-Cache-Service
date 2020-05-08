@@ -33,15 +33,15 @@ namespace Paperback.Cache {
     }
     
     class MangaParkTransitionElement {
-        public MangaParkTransitionElement(string mangaTitle, string pubDate) {
-            Regex regex = new Regex("(.+)[ ]+[vol.\\d+]* ch\\.(\\d+)");
-            Match match = regex.Match(mangaTitle);
+        public MangaParkTransitionElement(string mangaUrl, string pubDate, string internalTitle) {
+            Regex regex = new Regex("(.+[vol.\\d]*)ch.(\\d)*");
+            Match match = regex.Match(internalTitle);
             if(match.Success) {
-                this.title = match.Groups[1].Value.Trim();
                 this.chapter = match.Groups[2].Value;
                 this.isValid = true;
             }
 
+            this.title = mangaUrl;
             this.pubDate = pubDate;
         }
         public bool isValid = false;

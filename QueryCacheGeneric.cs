@@ -22,26 +22,27 @@ namespace Paperback.Cache
             
             string destination = req.Query["destination"];
             string query = req.Query["query"];
+            string date = req.Query["date"];
 
             // Verify that a proper destination was given
-            if((destination == null || destination == "") || (query == null || query == "")) {
+            if((destination == null || destination == "") || (query == null || query == "") || (date == null || date == "")) {
                 return new BadRequestObjectResult("bad request");
             }
 
             if(destination == "MangaPark") {
-                return new OkObjectResult(await queryMangaPark(query));
+                return new OkObjectResult(await queryMangaPark(query, date));
             }
 
 
             return new BadRequestObjectResult("Source not cached");
         }
 
-        public static async Task<string> queryMangaPark(string query) {
+        public static async Task<string> queryMangaPark(string query, string date) {
             HttpClient client = new HttpClient();
             
             var mangaParkHttpSecret = System.Environment.GetEnvironmentVariable("MangaParkHttpSecret");
             var mangaParkUrl = System.Environment.GetEnvironmentVariable("MangaParkUrl");
-            var variables = "?code=" + mangaParkHttpSecret + "&manga_title=" + query;
+            var variables = "?code=" + mangaParkHttpSecret + "&manga_title=" + query + "&from_date=" + date;
             var something = mangaParkUrl + variables;
             var response = await client.GetStringAsync(mangaParkUrl + variables);
             return response;
