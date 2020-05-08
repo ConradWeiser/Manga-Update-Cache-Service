@@ -46,15 +46,21 @@ namespace Paperback.Cache
                             // The element already exists, tear apart the JSON and check if we have this chapter already stored or not
                             ChapterDetails[] arr = Newtonsoft.Json.JsonConvert.DeserializeObject<ChapterDetails[]>(selectElement.json);
                             List<ChapterDetails> list = new List<ChapterDetails>(arr);
+                            bool foundChapter = false;
                             foreach(ChapterDetails chapter in arr) {
-                                if(chapter.chapterNum != element.chapter) {
-                                    // This is a new entry! Add it to the list
-                                    ChapterDetails detail = new ChapterDetails();
-                                    detail.chapterNum = element.chapter;
-                                    detail.timestamp = element.pubDate;
-
-                                    list.Add(detail);
+                                if(chapter.chapterNum == element.chapter) {
+                                    // Mark that we found this chapter, and that it should not be added
+                                    foundChapter = true;
+                                    break;
                                 }
+                            }
+
+                            // If we didn't find the chapter in our list already, add it
+                            if(!foundChapter) {
+                                ChapterDetails detail = new ChapterDetails();
+                                detail.chapterNum = element.chapter;
+                                detail.timestamp = element.pubDate;
+                                list.Add(detail);
                             }
 
                             // If the list is bigger than the array, we've added new objects. Replace the object in the datastore. Otherwise ignore it
